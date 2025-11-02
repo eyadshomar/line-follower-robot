@@ -49,4 +49,3 @@ This project is a microcontroller-based robot using **Arduino**, **IR sensors**,
 
 ## Author
 **Iyad Shomar**  
-Electrical Engineering Student | Robotics & Embedded Systems Enthusiast
