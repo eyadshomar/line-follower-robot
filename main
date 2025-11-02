@@ -1,233 +1,134 @@
+#include <SoftwareSerial.h>
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+// setting up lcd
+LiquidCrystal_I2C lcd(0x27,16,2);
+int RX=0, TX=1;
+// setting up bluetooth
+SoftwareSerial BTserial(RX, TX);
 
-  #include <Servo.h> 
-  #include <LiquidCrystal_I2C.h>
-  LiquidCrystal_I2C lcd(0x3f,16,2); 
-  Servo myservo;
+void setup_lcd(){
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0,0);
+}
 
-  #define LM_PWM 3   //  PWM for L_Motor  
-  #define LM_DIR 2   //  direction for L_Motor  1-forward  0-backward
-  #define RM_PWM 5   //  PWM for R_Motor
-  #define RM_DIR 4   //  direction for R_Motor  1-forward  0-backward
-  #define F_Led 6    //  Front White leds 
-  #define R_Led 7    //  Right yelow leds
-  #define B_Led 9    //  Back  Red leds
-  #define L_Led 8   //  Left  green leds
-  #define Trig 10
-  #define Echo 11
-  #define Buzzer 13
-  long width;     
-  int  distance;
-  int  i,R, L, M, pos=90;
-  char D;
+void setup_Bluetooth(){
+  BTserial.begin(9600);
+  Serial.begin(9600);
+  Serial.println("Arduino is ready");
+  pinMode(RX,INPUT);
+  pinMode(TX,OUTPUT);
+ // lcd.print("Set!");
+}
+int i;
+// Ultrasound variables
+int cm ;
+long ti;
+// PWM values
+int k = 180 ,z = 150 ;  
+// LM=Left Motor, RM=Right Motor, FL=Front Led, RL=Right Led, LL=Left Led, BL=Back Led                                                                              
+// RIR=Right InfraRed sensor, LIR=Left InfraRed sensor
+int LM2=2, LM1=3, RM1=4, RM2=5, FL=6, RL=7, BL=8, LL=9, duration=1000, RIR=A2, LIR=A1;
+// TP=Trigger Pin, EP=Echo Pin;
+int TP=12, EP=11;
+int InnerLED=A0;
+void setup() {
+  setup_lcd();
+  setup_Bluetooth();
+  // put your setup code here, to run once:
+  pinMode(LM1, OUTPUT);
+  pinMode(LM2, OUTPUT);
+  pinMode(RM1, OUTPUT);
+  pinMode(RM2, OUTPUT);
+  pinMode(FL, OUTPUT);
+  pinMode(RL, OUTPUT);
+  pinMode(BL, OUTPUT);
+  pinMode(LL, OUTPUT);
+  pinMode(RIR, INPUT);
+  pinMode(LIR, INPUT);
+  pinMode(TP, OUTPUT);
+  pinMode(EP, INPUT);
+  pinMode(InnerLED, OUTPUT);
+}
+
+void drive(int m1,int m2,int m3,int m4)
+{
+  int front_lights, back_lights, right_lights, left_lights, motor1, motor2, motor3, motor4;
+  //motor1 and motor2 for left motor, motor3 and motor4 for right motor.
+  //motor1 and motor3 are forward, motor2 and motor4 are backward.
+  //dir: 1010 = forward, 1000 = right, 0101 = backward, 0010 = left, 0000 = stop.
+  //Note: There are other inputs that can cause the robot to go right, left, or stop.
+  front_lights = (m1)&&(!m2)&&(m3)&&(!m4);
+  back_lights = (!m1)&&(m2)&&(!m3)&&(m4);
+  right_lights = (m1&&(!m2)&&(!m3))||((!m1)&&(!m2)&&m4)||(m1&&(!m3)&&m4)||((!m2)&&(!m3)&&m4);
+  left_lights = ((!m1)&&m2&&m3)||((!m1)&&m2&&(!m4))||((!m1)&&m3&&(!m4))||(m2&&m3&&(!m4));
+  digitalWrite (FL, front_lights);
+  digitalWrite (RL, right_lights);
+  digitalWrite (BL, back_lights);
+  digitalWrite (LL, left_lights);
+  analogWrite(LM1, m1*180);
+  analogWrite(LM2, m2*180);
+  analogWrite(RM1, m3*150);
+  analogWrite(RM2, m4*150);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
   
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- 
+  // Ultrasound function
+  int x,y;
+  digitalWrite(TP, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TP, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TP, LOW);
+  ti = pulseIn(EP, HIGH);
+  cm = ti*0.034/2;
 
-  int UltraSonicRead(int USTrig, int USEcho)
-  {
-      digitalWrite(USTrig,0);  
-      delayMicroseconds(2); 
-      digitalWrite(USTrig,1);
-      delayMicroseconds(10); 
-      digitalWrite(USTrig,0);
-      width = pulseIn(USEcho,1);
-      distance = width/58.2;
-      return distance;
+
+ // In case of an obstacle in the way
+ if (cm < 14) {
+  drive(0,0,0,0);
+lcd.clear();
+lcd.print("obstacle!");
+  Serial.println("Dear user,");
+  Serial.println("The vehicle is facing an obstacle.");
+  Serial.println("Please remove it, so the vehicle could continue its ride.");
+  Serial.println("Thank you in advance.");
+  delay(100);
+  while(cm<14){
+    digitalWrite(InnerLED,HIGH);
+    delay(50);
+    digitalWrite(InnerLED,LOW);
+    delay(50);
+    digitalWrite(TP, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TP, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TP, LOW);
+    ti = pulseIn(EP, HIGH);
+    cm = ti*0.034/2;
   }
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- 
-
- 
-
-
- void MotorsPWM(int LM_Speed,int RM_Speed)
-  {
-    if(LM_Speed>=0)
-      digitalWrite(LM_DIR,0);     
-    else
-    {
-      LM_Speed+=255;
-      digitalWrite(LM_DIR,1);
-    } 
-    
-    if(RM_Speed>=0)
-      digitalWrite(RM_DIR,0);  
-    else
-    {
-      RM_Speed+=255;
-      digitalWrite(RM_DIR,1);
+lcd.clear();
+ }
+ else{
+    // Infrared sensor function  
+    x = digitalRead(RIR);
+    y = digitalRead(LIR);
+    if (x ==1 && y==0){
+      drive(1,0,0,0);
     }
-        
-    analogWrite(LM_PWM,LM_Speed);
-    analogWrite(RM_PWM,RM_Speed);
-  }
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-  
-  void Leds(char led)
-  {
-    switch(led)
-    {
-      case 'f': digitalWrite(F_Led,1); 
-                digitalWrite(R_Led,0);
-                digitalWrite(B_Led,0);
-                digitalWrite(L_Led,0);
-                break;   
-      case 'r': digitalWrite(F_Led,0); 
-                digitalWrite(R_Led,1);
-                digitalWrite(B_Led,0);
-                digitalWrite(L_Led,0);
-                break;             
-      case 'b': digitalWrite(F_Led,0); 
-                digitalWrite(R_Led,0);
-                digitalWrite(B_Led,1);
-                digitalWrite(L_Led,0);
-                break;               
-      case 'l': digitalWrite(F_Led,0); 
-                digitalWrite(R_Led,0);
-                digitalWrite(B_Led,0);
-                digitalWrite(L_Led,1);
-                break;               
-      case 's': digitalWrite(F_Led,0); 
-                digitalWrite(R_Led,0);
-                digitalWrite(B_Led,1);
-                digitalWrite(L_Led,0);
-                break;                                                               
-    }
-  }  
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-
-  void Lcd(char Dir)
-  {
-    lcd.setCursor(0,0);
-    lcd.print("Robot Direction");
-    lcd.setCursor(2,1);
-    switch(Dir)
-    {
-      case 'f': lcd.print("Go Forword... ");
-                break; 
-      case 'l': lcd.print("Go Left... ");
-                break; 
-      case 'r': lcd.print("Go Right... ");
-                break; 
-      case 'b': lcd.print("Go Backword... ");
-                break; 
-      case 's': lcd.print("Check distance ");
-                break; 
-    }
-  }
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-
-  void setup ()
-  {
-    lcd.init ();                       
-    lcd.backlight();
-    myservo.attach(12);
-    myservo.write(pos);
-    for (i=2 ; i<10 ; i++)
-      pinMode(i, OUTPUT);
-    pinMode(Echo, INPUT);
-    pinMode(Trig, OUTPUT);
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Robot initialize.. ");
-    lcd.setCursor(2,1);
-    lcd.print("Marian and layan");
-    
-    delay(1000);
-  } 
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-   
-  void loop ()
-  {
-     // lcd.clear();
-      while (UltraSonicRead(Trig, Echo)>30)
-      {
-         MotorsPWM(190,170); 
-         Leds('f');
-         Lcd('f');
-      }
-      MotorsPWM(0,0); 
-      Leds('s');
-      lcd.clear();
-      Lcd('s');
-      for(pos=90; pos >=30; pos-=10)
-      {
-        myservo.write(pos);
-        delay(15);
-      }
-      L = UltraSonicRead(Trig, Echo);
-      delay(50);
-      for(pos=30; pos <=150; pos+=10)
-      {
-        myservo.write(pos);
-        delay(15);
-      }
-      R = UltraSonicRead(Trig, Echo);
-      delay(50);
+    if( x==0 && y == 1){
+      drive (0,0,1,0);
       
-      if(L>R && L>30)
-      {
-        myservo.write(90);
-        MotorsPWM(-190,170); 
-        Leds('l');
-        lcd.clear();
-        Lcd('l');
-        delay(800);
-        MotorsPWM(0,0);
-        delay(100);
-      }
-      else if(R>L && R>30)
-      {
-        myservo.write(90);
-        MotorsPWM(190,-170); 
-        Leds('r');
-        lcd.clear();
-        Lcd('r');
-        delay(800);
-        MotorsPWM(0,0);
-        delay(100);
-      }
-      else 
-      {
-        myservo.write(90);
-        MotorsPWM(0,0);
-        delay(100);
-        MotorsPWM(-190,-170); 
-        Leds('b');
-        lcd.clear();
-        Lcd('b');
-        for(i=0; i<7; i++)
-        {
-            digitalWrite(Buzzer , 1);
-            delay(100); 
-            digitalWrite(Buzzer , 0);
-            delay(100); 
-        }
-        MotorsPWM(0,0);
-        delay(100);
-        if(L>R)
-        {
-          MotorsPWM(-190,170); 
-          Leds('l');
-          lcd.clear();
-          Lcd('l');
-          delay(800);
-          MotorsPWM(0,0);
-          delay(100);
-        }
-        else
-        {
-          MotorsPWM(190,-170); 
-          Leds('r');
-          lcd.clear();
-          Lcd('r');
-          delay(800);
-          MotorsPWM(0,0);
-          delay(100);
-        }  
-     }
+    }
+    if ((x == 0) && (y == 0)){
+      drive(1,0,1,0); 
+    }
+    if ((x == 1) &&(y == 1)){
+      drive (0,0,0,0);
+  }
+ }  
+     
   }
