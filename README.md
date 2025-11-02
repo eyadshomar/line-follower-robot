@@ -6,6 +6,15 @@ This project is a microcontroller-based robot using **Arduino**, **IR sensors**,
 
 ---
 
+https://github.com/user-attachments/assets/c9a2f735-d3ae-4d2b-bde3-6cb43868f1ce
+
+
+
+https://github.com/user-attachments/assets/25171130-6458-4898-92a2-81eab9f39389
+
+
+
+---
 ## Features
 - Line-following using two IR sensors (`RIR` and `LIR`)  
 - Obstacle detection using an ultrasonic sensor (`TP` and `EP`)  
