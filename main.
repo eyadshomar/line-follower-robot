@@ -1,0 +1,233 @@
+#include <LiquidCrystal_I2C.h>
+
+  #include <Servo.h> 
+  #include <LiquidCrystal_I2C.h>
+  LiquidCrystal_I2C lcd(0x3f,16,2); 
+  Servo myservo;
+
+  #define LM_PWM 3   //  PWM for L_Motor  
+  #define LM_DIR 2   //  direction for L_Motor  1-forward  0-backward
+  #define RM_PWM 5   //  PWM for R_Motor
+  #define RM_DIR 4   //  direction for R_Motor  1-forward  0-backward
+  #define F_Led 6    //  Front White leds 
+  #define R_Led 7    //  Right yelow leds
+  #define B_Led 9    //  Back  Red leds
+  #define L_Led 8   //  Left  green leds
+  #define Trig 10
+  #define Echo 11
+  #define Buzzer 13
+  long width;     
+  int  distance;
+  int  i,R, L, M, pos=90;
+  char D;
+  
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- 
+
+  int UltraSonicRead(int USTrig, int USEcho)
+  {
+      digitalWrite(USTrig,0);  
+      delayMicroseconds(2); 
+      digitalWrite(USTrig,1);
+      delayMicroseconds(10); 
+      digitalWrite(USTrig,0);
+      width = pulseIn(USEcho,1);
+      distance = width/58.2;
+      return distance;
+  }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- 
+
+ 
+
+
+ void MotorsPWM(int LM_Speed,int RM_Speed)
+  {
+    if(LM_Speed>=0)
+      digitalWrite(LM_DIR,0);     
+    else
+    {
+      LM_Speed+=255;
+      digitalWrite(LM_DIR,1);
+    } 
+    
+    if(RM_Speed>=0)
+      digitalWrite(RM_DIR,0);  
+    else
+    {
+      RM_Speed+=255;
+      digitalWrite(RM_DIR,1);
+    }
+        
+    analogWrite(LM_PWM,LM_Speed);
+    analogWrite(RM_PWM,RM_Speed);
+  }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+  
+  void Leds(char led)
+  {
+    switch(led)
+    {
+      case 'f': digitalWrite(F_Led,1); 
+                digitalWrite(R_Led,0);
+                digitalWrite(B_Led,0);
+                digitalWrite(L_Led,0);
+                break;   
+      case 'r': digitalWrite(F_Led,0); 
+                digitalWrite(R_Led,1);
+                digitalWrite(B_Led,0);
+                digitalWrite(L_Led,0);
+                break;             
+      case 'b': digitalWrite(F_Led,0); 
+                digitalWrite(R_Led,0);
+                digitalWrite(B_Led,1);
+                digitalWrite(L_Led,0);
+                break;               
+      case 'l': digitalWrite(F_Led,0); 
+                digitalWrite(R_Led,0);
+                digitalWrite(B_Led,0);
+                digitalWrite(L_Led,1);
+                break;               
+      case 's': digitalWrite(F_Led,0); 
+                digitalWrite(R_Led,0);
+                digitalWrite(B_Led,1);
+                digitalWrite(L_Led,0);
+                break;                                                               
+    }
+  }  
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+  void Lcd(char Dir)
+  {
+    lcd.setCursor(0,0);
+    lcd.print("Robot Direction");
+    lcd.setCursor(2,1);
+    switch(Dir)
+    {
+      case 'f': lcd.print("Go Forword... ");
+                break; 
+      case 'l': lcd.print("Go Left... ");
+                break; 
+      case 'r': lcd.print("Go Right... ");
+                break; 
+      case 'b': lcd.print("Go Backword... ");
+                break; 
+      case 's': lcd.print("Check distance ");
+                break; 
+    }
+  }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+  void setup ()
+  {
+    lcd.init ();                       
+    lcd.backlight();
+    myservo.attach(12);
+    myservo.write(pos);
+    for (i=2 ; i<10 ; i++)
+      pinMode(i, OUTPUT);
+    pinMode(Echo, INPUT);
+    pinMode(Trig, OUTPUT);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Robot initialize.. ");
+    lcd.setCursor(2,1);
+    lcd.print("Marian and layan");
+    
+    delay(1000);
+  } 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+   
+  void loop ()
+  {
+     // lcd.clear();
+      while (UltraSonicRead(Trig, Echo)>30)
+      {
+         MotorsPWM(190,170); 
+         Leds('f');
+         Lcd('f');
+      }
+      MotorsPWM(0,0); 
+      Leds('s');
+      lcd.clear();
+      Lcd('s');
+      for(pos=90; pos >=30; pos-=10)
+      {
+        myservo.write(pos);
+        delay(15);
+      }
+      L = UltraSonicRead(Trig, Echo);
+      delay(50);
+      for(pos=30; pos <=150; pos+=10)
+      {
+        myservo.write(pos);
+        delay(15);
+      }
+      R = UltraSonicRead(Trig, Echo);
+      delay(50);
+      
+      if(L>R && L>30)
+      {
+        myservo.write(90);
+        MotorsPWM(-190,170); 
+        Leds('l');
+        lcd.clear();
+        Lcd('l');
+        delay(800);
+        MotorsPWM(0,0);
+        delay(100);
+      }
+      else if(R>L && R>30)
+      {
+        myservo.write(90);
+        MotorsPWM(190,-170); 
+        Leds('r');
+        lcd.clear();
+        Lcd('r');
+        delay(800);
+        MotorsPWM(0,0);
+        delay(100);
+      }
+      else 
+      {
+        myservo.write(90);
+        MotorsPWM(0,0);
+        delay(100);
+        MotorsPWM(-190,-170); 
+        Leds('b');
+        lcd.clear();
+        Lcd('b');
+        for(i=0; i<7; i++)
+        {
+            digitalWrite(Buzzer , 1);
+            delay(100); 
+            digitalWrite(Buzzer , 0);
+            delay(100); 
+        }
+        MotorsPWM(0,0);
+        delay(100);
+        if(L>R)
+        {
+          MotorsPWM(-190,170); 
+          Leds('l');
+          lcd.clear();
+          Lcd('l');
+          delay(800);
+          MotorsPWM(0,0);
+          delay(100);
+        }
+        else
+        {
+          MotorsPWM(190,-170); 
+          Leds('r');
+          lcd.clear();
+          Lcd('r');
+          delay(800);
+          MotorsPWM(0,0);
+          delay(100);
+        }  
+     }
+  }
